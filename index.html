@@ -386,4 +386,425 @@
   }
 
   .empty{
-    text-align:center; padding: 28px 10px; color: var(--cocoa); opacity:0…
+    text-align:center; padding: 28px 10px; color: var(--cocoa); opacity:0.55; font-size:14px;
+  }
+
+  .loading{
+    text-align:center; padding: 40px 10px; color: var(--cocoa); opacity:0.6; font-size:14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="dot">🍮</span> Bendito Pudim</div>
+    <div class="subtitle">Lançar venda</div>
+    <div class="goal-row">
+      <div class="goal-card">
+        <div class="goal-label">Meta da semana</div>
+        <div class="goal-value" id="goalValue">R$ 0,00</div>
+        <div class="therm"><div class="therm-fill" id="thermFill" style="width:0%"></div></div>
+      </div>
+      <div class="goal-card">
+        <div class="goal-label">Vendido esta semana</div>
+        <div class="goal-value" id="weekValue">R$ 0,00</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="segmented" id="segProduto">
+      <button class="seg-btn active" data-p="geladinho">🧊 Geladinho</button>
+      <button class="seg-btn" data-p="pudim">🍮 Pudim</button>
+      <button class="seg-btn" data-p="bolo">🎂 Bolo</button>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>Vendedor</label>
+        <input type="text" id="vendedor" placeholder="Seu nome">
+      </div>
+
+      <div class="field">
+        <label>Cliente</label>
+        <input type="text" id="cliente" placeholder="Nome do cliente">
+      </div>
+
+      <div class="field">
+        <label>Sabor</label>
+        <input type="text" id="sabor" placeholder="Ex.: Pudim, Morango...">
+      </div>
+
+      <div class="field" id="tamanhosWrap" style="display:none;">
+        <label>Tamanho</label>
+        <div class="tamanhos" id="tamanhos"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Quantidade</label>
+          <div class="stepper">
+            <button type="button" id="qtdMinus">−</button>
+            <input type="number" id="qtd" value="1" min="1">
+            <button type="button" id="qtdPlus">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Preço cheio (unit.)</label>
+          <div class="price-input">
+            <span>R$</span>
+            <input type="text" inputmode="decimal" id="valorCheio" value="8,00">
+          </div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Valor com desconto (unit.)</label>
+          <div class="price-input">
+            <span>R$</span>
+            <input type="text" inputmode="decimal" id="valorUnit" value="8,00">
+          </div>
+        </div>
+        <div class="field">
+          <label>% desconto</label>
+          <div class="price-input" id="descontoBox">
+            <span id="descontoValor">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Pagamento</label>
+        <div class="toggle-pago" id="togglePago">
+          <button type="button" data-v="sim" class="active">✓ Pago</button>
+          <button type="button" data-v="nao">Fiado</button>
+        </div>
+      </div>
+
+      <div class="total-strip">
+        <div>
+          <span class="lbl">Total da venda</span>
+          <div class="breakdown" id="totalBreakdown">1 x R$ 8,00</div>
+        </div>
+        <span class="val" id="totalVenda">R$ 8,00</span>
+      </div>
+
+      <button class="submit-btn" id="btnSalvar">Registrar venda</button>
+    </div>
+
+    <div class="hist-head">
+      <h2>Hoje</h2>
+      <button class="export" id="btnExport">Exportar CSV</button>
+    </div>
+    <div id="listaHoje"><div class="loading">Carregando...</div></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAa-u8Llhxcs63e1BGPC-sHN9LEEakTqLo",
+  authDomain: "bendito-pudim-77df5.firebaseapp.com",
+  projectId: "bendito-pudim-77df5",
+  storageBucket: "bendito-pudim-77df5.firebasestorage.app",
+  messagingSenderId: "723554743037",
+  appId: "1:723554743037:web:3aedf77e68c7cc8bdac494"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const vendasCollection = db.collection('vendas');
+
+const PRECOS_PADRAO = { geladinho: 8.00, pudim: 15.00, bolo: 55.00 };
+const TAMANHOS_PUDIM = [15, 25, 35, 50, 60];
+const META_SEMANAL_RS = 478.80;
+
+let produtoAtual = 'geladinho';
+let pagoAtual = 'sim';
+let vendas = [];
+
+const $ = (id) => document.getElementById(id);
+
+function parseValor(str){
+  const n = parseFloat(String(str).replace(/\./g,'').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+function fmtRS(n){
+  return 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtValorInput(n){
+  return n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+function recalcDesconto(){
+  const cheio = parseValor($('valorCheio').value);
+  const comDesc = parseValor($('valorUnit').value);
+  const pctEl = $('descontoValor');
+  if(cheio <= 0){
+    pctEl.textContent = '0%';
+    pctEl.classList.remove('tem-desconto');
+    return;
+  }
+  const pct = ((cheio - comDesc) / cheio) * 100;
+  const pctArredondado = Math.round(pct * 10) / 10;
+  pctEl.textContent = pctArredondado + '%';
+  pctEl.classList.toggle('tem-desconto', pctArredondado > 0);
+}
+
+function recalcTotal(){
+  const qtd = parseInt($('qtd').value) || 0;
+  const unit = parseValor($('valorUnit').value);
+  $('totalVenda').textContent = fmtRS(qtd * unit);
+  $('totalBreakdown').textContent = qtd + ' x ' + fmtRS(unit);
+  recalcDesconto();
+}
+
+function renderTamanhos(){
+  const wrap = $('tamanhosWrap');
+  const cont = $('tamanhos');
+  if(produtoAtual !== 'pudim'){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  cont.innerHTML = TAMANHOS_PUDIM.map(v => `
+    <button type="button" class="tamanho-chip" data-v="${v}">R$ ${v}</button>
+  `).join('');
+  cont.querySelectorAll('.tamanho-chip').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      cont.querySelectorAll('.tamanho-chip').forEach(b=> b.classList.remove('active'));
+      btn.classList.add('active');
+      const v = parseFloat(btn.dataset.v);
+      $('valorCheio').value = fmtValorInput(v);
+      $('valorUnit').value = fmtValorInput(v);
+      recalcTotal();
+    });
+  });
+}
+
+function selectProduto(p){
+  produtoAtual = p;
+  document.querySelectorAll('#segProduto .seg-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.p === p);
+  });
+  $('valorCheio').value = fmtValorInput(PRECOS_PADRAO[p]);
+  $('valorUnit').value = fmtValorInput(PRECOS_PADRAO[p]);
+  if(!$('sabor').value) $('sabor').value = p === 'bolo' ? 'Bolo de pudim' : 'Pudim';
+  renderTamanhos();
+  recalcTotal();
+}
+
+function selectPago(v){
+  pagoAtual = v;
+  document.querySelectorAll('#togglePago button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.v === v);
+  });
+}
+
+$('segProduto').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.seg-btn');
+  if(btn) selectProduto(btn.dataset.p);
+});
+$('togglePago').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(btn) selectPago(btn.dataset.v);
+});
+$('qtdMinus').addEventListener('click', ()=>{
+  $('qtd').value = Math.max(1, (parseInt($('qtd').value)||1) - 1);
+  recalcTotal();
+});
+$('qtdPlus').addEventListener('click', ()=>{
+  $('qtd').value = (parseInt($('qtd').value)||1) + 1;
+  recalcTotal();
+});
+$('qtd').addEventListener('input', recalcTotal);
+$('valorUnit').addEventListener('input', recalcTotal);
+$('valorCheio').addEventListener('input', recalcDesconto);
+
+function startOfWeek(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day;
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() - diff);
+  return date;
+}
+
+function renderGoal(){
+  const now = new Date();
+  const wkStart = startOfWeek(now).getTime();
+  const totalSemana = vendas
+    .filter(v => v.ts >= wkStart)
+    .reduce((s,v)=> s + v.total, 0);
+  $('weekValue').textContent = fmtRS(totalSemana);
+  $('goalValue').textContent = fmtRS(META_SEMANAL_RS);
+  const pct = META_SEMANAL_RS > 0 ? Math.min(100, (totalSemana / META_SEMANAL_RS) * 100) : 0;
+  $('thermFill').style.width = pct + '%';
+}
+
+function renderHoje(){
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+  const todays = vendas.filter(v => v.ts >= todayStart.getTime()).sort((a,b)=> b.ts - a.ts);
+  const cont = $('listaHoje');
+  if(todays.length === 0){
+    cont.innerHTML = '<div class="empty">Nenhuma venda registrada hoje ainda.</div>';
+    return;
+  }
+  cont.innerHTML = todays.map(v => `
+    <div class="entry" data-id="${v.id}">
+      <div class="tag ${v.produto}"></div>
+      <div class="info">
+        <div class="cliente">${escapeHtml(v.cliente || 'Sem nome')}</div>
+        <div class="meta">${v.qtd}x ${escapeHtml(v.sabor||'')} · ${nomeProduto(v.produto)}${v.pctDesconto ? ' · -' + v.pctDesconto + '%' : ''} · ${escapeHtml(v.vendedor||'—')}</div>
+      </div>
+      <div>
+        <div class="amount">${fmtRS(v.total)}</div>
+        <div class="pago-flag ${v.pago==='sim'?'sim':'nao'}">${v.pago==='sim' ? 'PAGO' : 'FIADO'}</div>
+      </div>
+      <button class="del" data-id="${v.id}" title="Remover">✕</button>
+    </div>
+  `).join('');
+
+  cont.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      await excluirVenda(id);
+    });
+  });
+}
+
+function nomeProduto(p){
+  if(p === 'geladinho') return 'Geladinho';
+  if(p === 'bolo') return 'Bolo de pudim';
+  return 'Pudim';
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function carregarVendas(){
+  // Escuta em tempo real: qualquer venda registrada por você ou pelo vendedor
+  // atualiza a tela na hora, nos dois aparelhos.
+  vendasCollection.orderBy('ts', 'desc').onSnapshot((snapshot)=>{
+    vendas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderHoje();
+    renderGoal();
+  }, (err)=>{
+    console.error(err);
+    showToast('Erro ao conectar com o banco de dados');
+  });
+}
+
+async function carregarNomeVendedor(){
+  try{
+    const nome = localStorage.getItem('bp_nome_vendedor');
+    if(nome) $('vendedor').value = nome;
+  }catch(e){ }
+}
+
+async function salvarNomeVendedor(nome){
+  try{
+    localStorage.setItem('bp_nome_vendedor', nome);
+  }catch(e){ }
+}
+
+async function salvarVenda(venda){
+  try{
+    await vendasCollection.doc(venda.id).set(venda);
+  }catch(e){
+    showToast('Não consegui salvar. Verifique a internet.');
+  }
+}
+
+async function excluirVenda(id){
+  try{
+    await vendasCollection.doc(id).delete();
+  }catch(e){
+    showToast('Não consegui excluir. Tente novamente.');
+  }
+}
+
+$('btnSalvar').addEventListener('click', async ()=>{
+  const vendedor = $('vendedor').value.trim();
+  const cliente = $('cliente').value.trim();
+  const sabor = $('sabor').value.trim();
+  const qtd = parseInt($('qtd').value) || 1;
+  const cheio = parseValor($('valorCheio').value);
+  const unit = parseValor($('valorUnit').value);
+  const total = qtd * unit;
+  const pctDesconto = cheio > 0 ? Math.round(((cheio - unit) / cheio) * 1000) / 10 : 0;
+
+  if(!vendedor){
+    showToast('Digite seu nome');
+    $('vendedor').focus();
+    return;
+  }
+  if(!cliente){
+    showToast('Digite o nome do cliente');
+    $('cliente').focus();
+    return;
+  }
+
+  const btn = $('btnSalvar');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const nova = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    ts: Date.now(),
+    vendedor, cliente, sabor, produto: produtoAtual,
+    qtd, valorCheio: cheio, valorUnit: unit, pctDesconto, total,
+    pago: pagoAtual
+  };
+  await salvarVenda(nova);
+  salvarNomeVendedor(vendedor);
+
+  btn.disabled = false;
+  btn.textContent = 'Registrar venda';
+  showToast('Venda registrada ✓');
+
+  $('cliente').value = '';
+  $('qtd').value = 1;
+  recalcTotal();
+});
+
+$('btnExport').addEventListener('click', ()=>{
+  if(vendas.length === 0){ showToast('Nenhuma venda pra exportar'); return; }
+  const header = 'Data,Vendedor,Cliente,Produto,Sabor,Qtd,Preço cheio (R$),Valor unit (R$),% Desconto,Valor total (R$),Pago\n';
+  const rows = vendas
+    .slice()
+    .sort((a,b)=> a.ts - b.ts)
+    .map(v => {
+      const d = new Date(v.ts);
+      const data = d.toLocaleDateString('pt-BR');
+      return [data, v.vendedor||'', v.cliente, nomeProduto(v.produto), v.sabor, v.qtd, (v.valorCheio||v.valorUnit).toFixed(2), v.valorUnit.toFixed(2), v.pctDesconto||0, v.total.toFixed(2), v.pago==='sim'?'Sim':'Não'].join(',');
+    }).join('\n');
+  const blob = new Blob([header + rows], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vendas_bendito_pudim.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+selectProduto('geladinho');
+carregarVendas();
+carregarNomeVendedor();
+</script>
+</body>
+</html>
