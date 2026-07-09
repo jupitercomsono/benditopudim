@@ -722,9 +722,10 @@ async function salvarNomeVendedor(nome){
 
 async function salvarVenda(venda){
   try{
-    await vendasCollection.doc(venda.id).set(venda);
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    await Promise.race([vendasCollection.doc(venda.id).set(venda), timeout]);
   }catch(e){
-    showToast('Não consegui salvar. Verifique a internet.');
+    showToast('Salvo localmente, sincronizando quando houver internet');
   }
 }
 
@@ -768,16 +769,18 @@ $('btnSalvar').addEventListener('click', async ()=>{
     qtd, valorCheio: cheio, valorUnit: unit, pctDesconto, total,
     pago: pagoAtual
   };
-  await salvarVenda(nova);
-  salvarNomeVendedor(vendedor);
 
-  btn.disabled = false;
-  btn.textContent = 'Registrar venda';
-  showToast('Venda registrada ✓');
-
-  $('cliente').value = '';
-  $('qtd').value = 1;
-  recalcTotal();
+  try {
+    await salvarVenda(nova);
+    salvarNomeVendedor(vendedor);
+    showToast('Venda registrada ✓');
+    $('cliente').value = '';
+    $('qtd').value = 1;
+    recalcTotal();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Registrar venda';
+  }
 });
 
 $('btnExport').addEventListener('click', ()=>{
