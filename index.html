@@ -725,6 +725,7 @@ async function salvarVenda(venda){
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
     await Promise.race([vendasCollection.doc(venda.id).set(venda), timeout]);
   }catch(e){
+    console.error('Erro ao salvar venda:', e);
     showToast('Salvo localmente, sincronizando quando houver internet');
   }
 }
