@@ -503,9 +503,10 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-firestore-compat.js"></script>
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { initializeFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAa-u8Llhxcs63e1BGPC-sHN9LEEakTqLo",
   authDomain: "bendito-pudim-77df5.firebaseapp.com",
@@ -514,13 +515,25 @@ const firebaseConfig = {
   messagingSenderId: "723554743037",
   appId: "1:723554743037:web:3aedf77e68c7cc8bdac494"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const vendasCollection = db.collection('vendas');
 
+const app = initializeApp(firebaseConfig);
+// O "default" aqui embaixo é o NOME do banco de dados criado no Firestore
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, "default");
+
+window.fb = {
+  escutarVendas: (cb, errCb) => onSnapshot(query(collection(db, 'vendas'), orderBy('ts', 'desc')), cb, errCb),
+  salvarVenda: (venda) => setDoc(doc(db, 'vendas', venda.id), venda),
+  excluirVenda: (id) => deleteDoc(doc(db, 'vendas', id)),
+  escutarMeta: (cb) => onSnapshot(doc(db, 'config', 'meta'), cb),
+  salvarMeta: (valor) => setDoc(doc(db, 'config', 'meta'), { semanal: valor })
+};
+window.dispatchEvent(new Event('fb-pronto'));
+</script>
+<script>
 const PRECOS_PADRAO = { geladinho: 8.00, pudim: 15.00, bolo: 55.00 };
 const TAMANHOS_PUDIM = [15, 25, 35, 50, 60];
-const META_SEMANAL_RS = 478.80;
+let metaSemanal = 478.80;
+const PIN_ADMIN = '152992'; // Troque por um PIN só seu antes de publicar!
 
 let produtoAtual = 'geladinho';
 let pagoAtual = 'sim';
@@ -647,8 +660,8 @@ function renderGoal(){
     .filter(v => v.ts >= wkStart)
     .reduce((s,v)=> s + v.total, 0);
   $('weekValue').textContent = fmtRS(totalSemana);
-  $('goalValue').textContent = fmtRS(META_SEMANAL_RS);
-  const pct = META_SEMANAL_RS > 0 ? Math.min(100, (totalSemana / META_SEMANAL_RS) * 100) : 0;
+  $('goalValue').textContent = fmtRS(metaSemanal);
+  const pct = metaSemanal > 0 ? Math.min(100, (totalSemana / metaSemanal) * 100) : 0;
   $('thermFill').style.width = pct + '%';
 }
 
@@ -807,8 +820,28 @@ $('btnExport').addEventListener('click', ()=>{
 });
 
 selectProduto('geladinho');
-carregarVendas();
 carregarNomeVendedor();
+window.addEventListener('fb-pronto', ()=>{ carregarVendas(); });
+
+// Área da administradora: toque na meta (no topo) para alterá-la com o PIN
+$('goalValue').addEventListener('click', async ()=>{
+  const pin = prompt('PIN de administrador:');
+  if(pin === null) return;
+  if(pin !== PIN_ADMIN){ showToast('PIN incorreto'); return; }
+  const atual = metaSemanal.toFixed(2).replace('.', ',');
+  const novo = prompt('Nova meta semanal (R$):', atual);
+  if(novo === null) return;
+  const v = parseValor(novo);
+  if(v > 0){
+    try{
+      await window.fb.salvarMeta(v);
+      showToast('Meta atualizada ✓');
+    }catch(e){
+      console.error(e);
+      showToast('Erro ao salvar a meta');
+    }
+  }
+});
 </script>
 </body>
 </html>
