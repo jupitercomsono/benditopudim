@@ -96,6 +96,7 @@
     font-size: 15px;
     font-weight:600;
     margin-top:3px;
+    cursor: pointer;
   }
   .therm{
     margin-top: 8px;
@@ -517,7 +518,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-// O "default" aqui embaixo é o NOME do banco de dados criado no Firestore
+// O "default" abaixo é o NOME do banco de dados criado no Firestore
 const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, "default");
 
 window.fb = {
@@ -529,6 +530,7 @@ window.fb = {
 };
 window.dispatchEvent(new Event('fb-pronto'));
 </script>
+
 <script>
 const PRECOS_PADRAO = { geladinho: 8.00, pudim: 15.00, bolo: 55.00 };
 const TAMANHOS_PUDIM = [15, 25, 35, 50, 60];
@@ -710,13 +712,21 @@ function escapeHtml(s){
 function carregarVendas(){
   // Escuta em tempo real: qualquer venda registrada por você ou pelo vendedor
   // atualiza a tela na hora, nos dois aparelhos.
-  vendasCollection.orderBy('ts', 'desc').onSnapshot((snapshot)=>{
-    vendas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  window.fb.escutarVendas((snapshot)=>{
+    vendas = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     renderHoje();
     renderGoal();
   }, (err)=>{
     console.error(err);
     showToast('Erro ao conectar com o banco de dados');
+  });
+
+  // Escuta a meta semanal definida pela administradora
+  window.fb.escutarMeta((docSnap)=>{
+    if(docSnap.exists() && docSnap.data().semanal > 0){
+      metaSemanal = docSnap.data().semanal;
+      renderGoal();
+    }
   });
 }
 
@@ -734,19 +744,15 @@ async function salvarNomeVendedor(nome){
 }
 
 async function salvarVenda(venda){
-  try{
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
-    await Promise.race([vendasCollection.doc(venda.id).set(venda), timeout]);
-  }catch(e){
-    console.error('Erro ao salvar venda:', e);
-    showToast('Salvo localmente, sincronizando quando houver internet');
-  }
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+  await Promise.race([window.fb.salvarVenda(venda), timeout]);
 }
 
 async function excluirVenda(id){
   try{
-    await vendasCollection.doc(id).delete();
+    await window.fb.excluirVenda(id);
   }catch(e){
+    console.error('Erro ao excluir venda:', e);
     showToast('Não consegui excluir. Tente novamente.');
   }
 }
@@ -791,6 +797,9 @@ $('btnSalvar').addEventListener('click', async ()=>{
     $('cliente').value = '';
     $('qtd').value = 1;
     recalcTotal();
+  } catch(e) {
+    console.error('Erro ao salvar venda:', e);
+    showToast('Não consegui salvar. Verifique a internet.');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Registrar venda';
@@ -819,11 +828,7 @@ $('btnExport').addEventListener('click', ()=>{
   URL.revokeObjectURL(url);
 });
 
-selectProduto('geladinho');
-carregarNomeVendedor();
-window.addEventListener('fb-pronto', ()=>{ carregarVendas(); });
-
-// Área da administradora: toque na meta (no topo) para alterá-la com o PIN
+// Área da administradora: toque no valor da meta (no topo) para alterá-la com o PIN
 $('goalValue').addEventListener('click', async ()=>{
   const pin = prompt('PIN de administrador:');
   if(pin === null) return;
@@ -842,6 +847,10 @@ $('goalValue').addEventListener('click', async ()=>{
     }
   }
 });
+
+selectProduto('geladinho');
+carregarNomeVendedor();
+window.addEventListener('fb-pronto', ()=>{ carregarVendas(); });
 </script>
 </body>
 </html>
