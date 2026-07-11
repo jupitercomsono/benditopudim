@@ -153,7 +153,6 @@
   </header>
 
   <main>
-    <!-- ================= VENDAS ================= -->
     <section class="screen active" id="scr-vendas">
       <div class="segmented" id="segProduto">
         <button class="seg-btn active" data-p="geladinho">🧊 Geladinho</button>
@@ -203,7 +202,6 @@
       </div>
     </section>
 
-    <!-- ================= ENCOMENDAS ================= -->
     <section class="screen" id="scr-encomendas">
       <div class="card">
         <h3>📝 Nova encomenda</h3>
@@ -260,7 +258,6 @@
       <div id="listaEnc"><div class="empty">Carregando...</div></div>
     </section>
 
-    <!-- ================= PRODUÇÃO ================= -->
     <section class="screen" id="scr-producao">
       <div class="card">
         <h3>🧊 Produção de Geladinho</h3>
@@ -298,7 +295,6 @@
       </div>
     </section>
 
-    <!-- ================= ESTOQUE ================= -->
     <section class="screen" id="scr-estoque">
       <div class="card"><h3>Produtos prontos</h3><div id="stockProntos"><div class="empty">Carregando...</div></div></div>
       <div class="card"><h3>Insumos</h3><div id="stockInsumos"></div></div>
@@ -316,7 +312,6 @@
       </div>
     </section>
 
-    <!-- ================= A RECEBER ================= -->
     <section class="screen" id="scr-receber">
       <div class="card">
         <h3>Fiados em aberto — <span class="mono" id="totalReceber" style="color:var(--bad); font-size:13px;">R$ 0,00</span></h3>
@@ -330,7 +325,8 @@
     <div class="nav-item" data-scr="encomendas"><div class="nav-icon">📋</div><div class="nav-label">Encomendas</div></div>
     <div class="nav-item" data-scr="producao"><div class="nav-icon">👩‍🍳</div><div class="nav-label">Produção</div></div>
     <div class="nav-item" data-scr="estoque"><div class="nav-icon">📦</div><div class="nav-label">Estoque</div></div>
-    <div class="nav-item" data-scr="receber"><div class="nav-icon">💰</div><div class="nav-label">A Receber 🔒</div></div>
+    <div class="nav-item" data-scr="caixa"><div class="nav-icon">💵</div><div class="nav-label">Caixa 🔒</div></div>
+    <div class="nav-item" data-scr="receber"><div class="nav-icon">💰</div><div class="nav-label">Receber 🔒</div></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -338,7 +334,6 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { initializeFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyAa-u8Llhxcs63e1BGPC-sHN9LEEakTqLo",
   authDomain: "bendito-pudim-77df5.firebaseapp.com",
@@ -349,7 +344,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, "default");
-
 window.fb = {
   escutarVendas: (cb, errCb) => onSnapshot(query(collection(db,'vendas'), orderBy('ts','desc')), cb, errCb),
   salvarVenda: (v) => setDoc(doc(db,'vendas', v.id), v),
@@ -372,17 +366,15 @@ window.dispatchEvent(new Event('fb-pronto'));
 
 <script>
 // ================== CONFIGURAÇÕES ==================
-const PIN_ADMIN = '152992'; // Troque por um PIN só seu!
+const PIN_ADMIN = '1234'; // ← Troque por um PIN só seu!
 const URL_PLANILHA = 'https://script.google.com/macros/s/AKfycbxKe3CcY5hshIm44018ICBmWOQGRXkyhzQTvIMyyrYKk6Y394SvF01ULYZ5xi-ziPq-ww/exec';
 
 const PRECOS_PADRAO = { geladinho: 8.00, pudim: 15.00, bolo: 55.00 };
 const TAMANHOS_PUDIM = [15, 25, 35, 50, 60];
-// Receita de 1 receita de geladinho:
 const RECEITA_GEL = { leiteCondensado:1, cremeLeite:2, misturaLactea:1, ovo:6, leiteIntegral:0.5, saqPicole:11, embHigienica:11 };
-const RENDE_GEL = 11;
+const RENDE_GEL = 11; // média; ajustável na hora de registrar
 
 const ITENS_ESTOQUE = [
-  // Produtos prontos
   { k:'geladinho',  n:'Geladinho',           cat:'Produto pronto', un:'un' },
   { k:'pudim15',    n:'Pudim R$15',          cat:'Produto pronto', un:'un' },
   { k:'pudim25',    n:'Pudim R$25',          cat:'Produto pronto', un:'un' },
@@ -390,7 +382,6 @@ const ITENS_ESTOQUE = [
   { k:'pudim50',    n:'Pudim R$50',          cat:'Produto pronto', un:'un' },
   { k:'pudim60',    n:'Pudim R$60',          cat:'Produto pronto', un:'un' },
   { k:'bolo',       n:'Bolo de pudim',       cat:'Produto pronto', un:'un' },
-  // Insumos
   { k:'leiteCondensado', n:'Leite condensado', cat:'Insumo', un:'un' },
   { k:'cremeLeite',      n:'Creme de leite',   cat:'Insumo', un:'un' },
   { k:'misturaLactea',   n:'Mistura láctea',   cat:'Insumo', un:'un' },
@@ -415,18 +406,14 @@ const ITENS_ESTOQUE = [
   { k:'formaBolo',       n:'Forma bolo',         cat:'Insumo', un:'un' }
 ];
 const NOME_PROD = { geladinho:'Geladinho', pudim15:'Pudim R$15', pudim25:'Pudim R$25', pudim35:'Pudim R$35', pudim50:'Pudim R$50', pudim60:'Pudim R$60', bolo:'Bolo de pudim' };
-// Fornada: cada tamanho consome forma + saco embalador
+// Saco G (embalador grande) NÃO é descontado aqui — baixa manual, pois é usado em encomendas de geladinho
 const CONSUMO_TAM = {
-  pudim15: { forma250:1, sacoEmbP:1 },
-  pudim25: { forma500:1, sacoEmbM:1 },
-  pudim35: { forma1100:1, sacoEmbM:1 },
-  pudim50: { formaGG:1, sacoEmbG:1 },
-  pudim60: { formaGG:1, sacoEmbG:1 },
-  bolo:    { formaBolo:1, sacoEmbG:1 }
+  pudim15: { forma250:1, sacoEmbP:1 }, pudim25: { forma500:1, sacoEmbM:1 },
+  pudim35: { forma1100:1, sacoEmbM:1 }, pudim50: { formaGG:1 },
+  pudim60: { formaGG:1 }, bolo: { formaBolo:1 }
 };
 
-// ================== ESTADO ==================
-let vendas = [], encomendas = [], estoque = {}, metaSemanal = 478.80;
+let vendas=[], encomendas=[], estoque={}, metaSemanal=478.80;
 let produtoAtual='geladinho', pagoAtual='sim', formaAtual='Pix';
 let encItens=[], encTipoAtual='Entrega', encPagoAtual='nao', encFormaAtual='Pix', encFiltroAtual='abertas';
 let receberLiberado=false;
@@ -440,22 +427,17 @@ const dataBR = ts => new Date(ts).toLocaleDateString('pt-BR');
 const horaBR = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 const escapeHtml = s => String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const novoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-
 function showToast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
 
-// Envia para a planilha (não trava o app se falhar)
 function enviarPlanilha(payload){
-  try{
-    fetch(URL_PLANILHA, { method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'text/plain'}, body: JSON.stringify(payload) });
-  }catch(e){ console.error('Planilha:', e); }
+  try{ fetch(URL_PLANILHA, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(payload) }); }
+  catch(e){ console.error('Planilha:', e); }
 }
 function enviarEstoquePlanilha(){
   const itens = ITENS_ESTOQUE.map(i => ({ nome:i.n, categoria:i.cat, qtd: Math.round((estoque[i.k]||0)*100)/100, unidade:i.un }));
   enviarPlanilha({ tipo:'estoque', itens });
 }
 
-// ================== NAVEGAÇÃO ==================
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click', ()=>{
     const scr = item.dataset.scr;
@@ -472,7 +454,6 @@ document.querySelectorAll('.nav-item').forEach(item=>{
   });
 });
 
-// ================== VENDAS ==================
 function recalcDesconto(){
   const cheio=parseValor($('valorCheio').value), desc=parseValor($('valorUnit').value);
   const el=$('descontoValor');
@@ -495,7 +476,6 @@ function renderTamanhos(){
       cont.querySelectorAll('.tamanho-chip').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const v=parseFloat(btn.dataset.v);
-      $('valorCheio').value=fmtNum(v)+',00'.slice(String(fmtNum(v)).includes(',')?2:0);
       $('valorCheio').value=v.toLocaleString('pt-BR',{minimumFractionDigits:2});
       $('valorUnit').value=$('valorCheio').value;
       recalcTotal();
@@ -514,7 +494,7 @@ $('segProduto').addEventListener('click',e=>{ const b=e.target.closest('.seg-btn
 $('togglePago').addEventListener('click',e=>{
   const p=e.target.closest('.pill'); if(!p) return;
   pagoAtual=p.dataset.v;
-  document.querySelectorAll('#togglePago .pill').forEach(x=>{ x.classList.remove('on-good','on-bad'); });
+  document.querySelectorAll('#togglePago .pill').forEach(x=>x.classList.remove('on-good','on-bad'));
   p.classList.add(pagoAtual==='sim'?'on-good':'on-bad');
   $('formaWrap').style.display = pagoAtual==='sim' ? 'block':'none';
 });
@@ -578,12 +558,11 @@ function renderHoje(){
       </div>
       <div><div class="amount">${fmtRS(v.total)}</div>
         <div class="pago-flag ${v.pago==='sim'?'sim':'nao'}">${v.pago==='sim'?'PAGO':'FIADO'}</div></div>
-      <button class="del" data-id="${v.id}" data-pk="${v.prodKey}" data-q="${v.qtd}">✕</button>
+      <button class="del" data-id="${v.id}" data-pk="${v.prodKey||''}" data-q="${v.qtd}">✕</button>
     </div>`).join('');
   cont.querySelectorAll('.del').forEach(btn=>btn.addEventListener('click', async ()=>{
     await window.fb.excluirVenda(btn.dataset.id);
-    await window.fb.ajustarEstoque({ [btn.dataset.pk]: parseInt(btn.dataset.q) });
-    setTimeout(enviarEstoquePlanilha, 800);
+    if(btn.dataset.pk){ await window.fb.ajustarEstoque({ [btn.dataset.pk]: parseInt(btn.dataset.q) }); setTimeout(enviarEstoquePlanilha,800); }
   }));
 }
 
@@ -596,7 +575,6 @@ $('btnExport').addEventListener('click',()=>{
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 });
 
-// ================== ENCOMENDAS ==================
 function renderEncItens(){
   $('encItens').innerHTML = encItens.map((it,i)=>`<span class="item-chip">${it.qtd}x ${NOME_PROD[it.k]} <button data-i="${i}">✕</button></span>`).join('');
   $('encItens').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ encItens.splice(parseInt(b.dataset.i),1); renderEncItens(); }));
@@ -640,8 +618,7 @@ $('btnSalvarEnc').addEventListener('click', async ()=>{
   const enc = { id:novoId(), tsRegistro:Date.now(), cliente,
     itens: encItens.map(it=>({...it})), dataEntrega:$('encData').value, horario:$('encHora').value||'',
     tipo:encTipoAtual, endereco: encTipoAtual==='Entrega'?$('encEndereco').value.trim():'',
-    valor:total, pago:encPagoAtual, forma: encPagoAtual==='sim'?encFormaAtual:'',
-    status:'Aberta', vendedor };
+    valor:total, pago:encPagoAtual, forma: encPagoAtual==='sim'?encFormaAtual:'', status:'Aberta', vendedor };
   const btn=$('btnSalvarEnc'); btn.disabled=true; btn.textContent='Salvando...';
   try{
     await window.fb.salvarEncomenda(enc);
@@ -687,11 +664,55 @@ function renderEncomendas(){
       ${e.status==='Aberta'?`
       <div class="enc-actions">
         <button class="btn-mini imprimir" data-id="${e.id}">🖨️ Imprimir</button>
+        <button class="btn-mini" style="background:var(--frost-pale);color:var(--frost-deep);" data-edit="${e.id}">✎ Editar</button>
         <button class="btn-mini concluir" data-id="${e.id}">✓ Concluir</button>
+      </div>
+      <div class="enc-actions" style="margin-top:6px;">
+        <button class="btn-mini" style="background:var(--bad-bg);color:var(--bad);" data-cancel="${e.id}">✕ Cancelar encomenda</button>
       </div>`:''}
     </div>`).join('');
   cont.querySelectorAll('.imprimir').forEach(b=>b.addEventListener('click',()=>imprimirCupom(b.dataset.id)));
   cont.querySelectorAll('.concluir').forEach(b=>b.addEventListener('click',()=>concluirEncomenda(b.dataset.id)));
+  cont.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editarEncomenda(b.dataset.edit)));
+  cont.querySelectorAll('[data-cancel]').forEach(b=>b.addEventListener('click',()=>cancelarEncomenda(b.dataset.cancel)));
+}
+
+let encEditandoId = null;
+
+function editarEncomenda(id){
+  const e = encomendas.find(x=>x.id===id); if(!e) return;
+  encEditandoId = id;
+  $('encCliente').value = e.cliente;
+  encItens = e.itens.map(it=>({...it}));
+  renderEncItens();
+  $('encData').value = e.dataEntrega;
+  $('encHora').value = e.horario||'';
+  // tipo
+  encTipoAtual = e.tipo;
+  document.querySelectorAll('#encTipo .pill').forEach(x=>{ x.classList.remove('on-frost','on-car');
+    if(x.dataset.t===e.tipo) x.classList.add(e.tipo==='Entrega'?'on-frost':'on-car'); });
+  $('encEndWrap').style.display = e.tipo==='Entrega'?'block':'none';
+  $('encEndereco').value = e.endereco||'';
+  // pago
+  encPagoAtual = e.pago;
+  document.querySelectorAll('#encPago .pill').forEach(x=>{ x.classList.remove('on-good','on-bad');
+    if(x.dataset.v===e.pago) x.classList.add(e.pago==='sim'?'on-good':'on-bad'); });
+  $('encFormaWrap').style.display = e.pago==='sim'?'block':'none';
+  if(e.pago==='sim' && e.forma){ encFormaAtual=e.forma;
+    document.querySelectorAll('#encForma .pill').forEach(x=>x.classList.toggle('on-frost',x.dataset.f===e.forma)); }
+  $('btnSalvarEnc').textContent = 'Salvar alterações';
+  document.querySelector('.nav-item[data-scr="encomendas"]').click();
+  window.scrollTo({top:0, behavior:'smooth'});
+  showToast('Editando encomenda de '+e.cliente);
+}
+
+async function cancelarEncomenda(id){
+  const e = encomendas.find(x=>x.id===id); if(!e) return;
+  if(!confirm('Cancelar a encomenda de '+e.cliente+'? Ela será removida e NÃO vira venda.')) return;
+  try{
+    await window.fb.atualizarEncomenda(id, { status:'Cancelada', tsCancelada: Date.now() });
+    showToast('Encomenda cancelada');
+  }catch(err){ console.error(err); showToast('Erro ao cancelar'); }
 }
 
 function imprimirCupom(id){
@@ -714,7 +735,7 @@ function imprimirCupom(id){
     <hr>
     ${e.tipo==='Entrega' ? `<div><b>ENTREGA:</b></div><div>${escapeHtml(e.endereco||'')}</div>` : '<div><b>RETIRADA NO LOCAL</b></div>'}
     <hr><div class="r"><span>Vendedor:</span><span>${escapeHtml(e.vendedor||'')}</span></div>
-    <script>window.print();<\/script>
+    <scr`+`ipt>window.print();<\/scr`+`ipt>
   </body></html>`);
   w.document.close();
 }
@@ -726,7 +747,6 @@ async function concluirEncomenda(id){
   if(e.pago==='sim' && !forma) forma='Pix';
   try{
     await window.fb.atualizarEncomenda(id, { status:'Concluída', tsConcluida: Date.now() });
-    // Cria uma venda para cada item + baixa estoque
     const deltas={};
     for(const it of e.itens){
       const v={ id:novoId(), ts:Date.now(), vendedor:e.vendedor||'—', cliente:e.cliente,
@@ -747,7 +767,6 @@ async function concluirEncomenda(id){
   }catch(err){ console.error(err); showToast('Erro ao concluir'); }
 }
 
-// ================== PRODUÇÃO ==================
 function atualizarGelNote(){
   const r=parseInt($('receitas').value)||1;
   $('rendeGel').value=(r*RENDE_GEL)+' geladinhos';
@@ -796,7 +815,7 @@ $('btnProdPudim').addEventListener('click', async ()=>{
     await window.fb.ajustarEstoque(deltas);
     const prodTxt=Object.entries(saidas).filter(([k,v])=>v>0).map(([k,v])=>v+'x '+NOME_PROD[k]).join(', ');
     const insTxt=Object.entries(ins).filter(([k,v])=>v>0).map(([k,v])=>{
-      const item=ITENS_ESTOQUE.find(i=>i.k===k); return v+(item.un==='un'?' ':item.un+' ')+item.n; }).join(', ');
+      const item=ITENS_ESTOQUE.find(i=>i.k===k); return v+' '+item.n; }).join(', ');
     enviarPlanilha({ tipo:'producao', data:dataBR(Date.now()), tipoProducao:'Fornada Pudim',
       produzido:prodTxt, insumos:insTxt, registradoPor: localStorage.getItem('bp_nome_vendedor')||'' });
     setTimeout(enviarEstoquePlanilha, 800);
@@ -807,11 +826,7 @@ $('btnProdPudim').addEventListener('click', async ()=>{
   finally{ btn.disabled=false; btn.textContent='Registrar fornada de pudim'; }
 });
 
-// ================== ESTOQUE ==================
-function limiteBaixo(k){
-  const limites={ geladinho:10, ovo:12, leitePo:200 };
-  return limites[k]||3;
-}
+function limiteBaixo(k){ const l={ geladinho:10, ovo:12, leitePo:200 }; return l[k]||3; }
 function renderEstoque(){
   const render=(cat, el)=>{
     $(el).innerHTML = ITENS_ESTOQUE.filter(i=>i.cat===cat).map(i=>{
@@ -824,9 +839,7 @@ function renderEstoque(){
   render('Produto pronto','stockProntos');
   render('Insumo','stockInsumos');
 }
-// Preenche o seletor de compras
 $('compraItem').innerHTML = ITENS_ESTOQUE.filter(i=>i.cat==='Insumo').map(i=>`<option value="${i.k}">${i.n} (${i.un})</option>`).join('');
-
 $('btnCompra').addEventListener('click', async ()=>{
   const k=$('compraItem').value, qtd=parseValor($('compraQtd').value);
   if(qtd<=0){ showToast('Informe a quantidade'); return; }
@@ -843,7 +856,6 @@ $('btnCompra').addEventListener('click', async ()=>{
   finally{ btn.disabled=false; btn.textContent='Registrar compra'; }
 });
 
-// ================== A RECEBER ==================
 function renderReceber(){
   const abertos = vendas.filter(v=>v.pago==='nao' && !v.recebido);
   const total = abertos.reduce((s,v)=>s+v.total,0);
@@ -874,7 +886,6 @@ function renderReceber(){
   }));
 }
 
-// ================== META / CARGA ==================
 function startOfWeek(){ const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-d.getDay()); return d.getTime(); }
 function renderGoal(){
   const wk=startOfWeek();
@@ -897,15 +908,11 @@ function carregarTudo(){
     vendas=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderHoje(); renderGoal(); renderReceber();
   }, err=>{ console.error(err); showToast('Erro de conexão'); });
-  window.fb.escutarEncomendas(snap=>{
-    encomendas=snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderEncomendas();
-  });
+  window.fb.escutarEncomendas(snap=>{ encomendas=snap.docs.map(d=>({id:d.id,...d.data()})); renderEncomendas(); });
   window.fb.escutarMeta(ds=>{ if(ds.exists()&&ds.data().semanal>0){ metaSemanal=ds.data().semanal; renderGoal(); } });
   window.fb.escutarEstoque(ds=>{ estoque = ds.exists()?ds.data():{}; renderEstoque(); });
 }
 
-// Inicialização
 selectProduto('geladinho');
 atualizarGelNote();
 renderEncItens();
