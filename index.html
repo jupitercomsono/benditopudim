@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -322,12 +322,11 @@
       </div>
     </section>
 
-    <!-- ===== ADMIN (Estoque | Caixa | Receber) ===== -->
+    <!-- ===== ADMIN (Estoque | Caixa) ===== -->
     <section class="screen" id="scr-admin">
       <div class="subtabs" id="adminSubtabs">
         <div class="subtab active" data-s="estoque">📦 Estoque</div>
         <div class="subtab" data-s="caixa">💵 Caixa</div>
-        <div class="subtab" data-s="receber">💰 Receber</div>
       </div>
 
       <div class="subscreen active" id="sub-estoque">
@@ -353,6 +352,11 @@
             <div><label>Quantidade (+ ou −)</label><input type="text" id="ajusteQtd" class="mono" inputmode="decimal" placeholder="ex: -5"></div>
           </div>
           <button class="btn" id="btnAjuste" style="background:var(--frost);">Aplicar ajuste</button>
+        </div>
+        <div class="card">
+          <h3>🖨️ Imprimir estoque / lista de compras</h3>
+          <div class="hint">Gera a lista completa com destaque no que está acabando ou zerado.</div>
+          <button class="btn" id="btnImprimirEstoque">Imprimir</button>
         </div>
       </div>
 
@@ -380,12 +384,14 @@
           <div id="caixaVendedores"></div>
         </div>
       </div>
+    </section>
 
-      <div class="subscreen" id="sub-receber">
-        <div class="card">
-          <h3>Fiados em aberto — <span class="mono" id="totalReceber" style="color:var(--bad); font-size:13px;">R$ 0,00</span></h3>
-          <div id="listaReceber"><div class="empty">Carregando...</div></div>
-        </div>
+    <!-- ===== RECEBER (livre para todos) ===== -->
+    <section class="screen" id="scr-receber">
+      <div class="card">
+        <h3>Fiados em aberto — <span class="mono" id="totalReceber" style="color:var(--bad); font-size:13px;">R$ 0,00</span></h3>
+        <div class="hint">Quando o cliente pagar, toque em "✓ Recebi" e informe a forma.</div>
+        <div id="listaReceber"><div class="empty">Carregando...</div></div>
       </div>
     </section>
   </main>
@@ -394,6 +400,7 @@
     <div class="nav-item active" data-scr="vendas"><div class="nav-icon">🛒</div><div class="nav-label">Vendas</div></div>
     <div class="nav-item" data-scr="encomendas"><div class="nav-icon">📋</div><div class="nav-label">Encomendas</div></div>
     <div class="nav-item" data-scr="producao"><div class="nav-icon">👩‍🍳</div><div class="nav-label">Produção</div></div>
+    <div class="nav-item" data-scr="receber"><div class="nav-icon">💰</div><div class="nav-label">Receber</div></div>
     <div class="nav-item" data-scr="admin"><div class="nav-icon">⚙️</div><div class="nav-label">Admin 🔒</div></div>
   </div>
 </div>
@@ -432,7 +439,7 @@ window.dispatchEvent(new Event('fb-pronto'));
 </script>
 
 <script>
-const PIN_ADMIN = '1234'; // ← Troque por um PIN só seu!
+const PIN_ADMIN = '152992'; // ← Troque por um PIN só seu!
 const URL_PLANILHA = 'https://script.google.com/macros/s/AKfycbxKe3CcY5hshIm44018ICBmWOQGRXkyhzQTvIMyyrYKk6Y394SvF01ULYZ5xi-ziPq-ww/exec';
 
 const PRECOS_PADRAO = { geladinho: 8.00, pudim: 15.00, bolo: 55.00 };
@@ -589,8 +596,10 @@ function renderHoje(){
     <button class="del" data-id="${v.id}" data-pk="${v.prodKey||''}" data-q="${v.qtd}">✕</button></div>`).join('');
   cont.querySelectorAll('.del').forEach(b=>b.addEventListener('click',async()=>{
     if(!confirm('Excluir esta venda?')) return;
+    const vv=vendas.find(x=>x.id===b.dataset.id);
     await window.fb.excluirVenda(b.dataset.id);
     if(b.dataset.pk){ await window.fb.ajustarEstoque({ [b.dataset.pk]: parseInt(b.dataset.q) }); setTimeout(enviarEstoquePlanilha,800); }
+    if(vv) enviarPlanilha({ tipo:'venda_cancelada', data:dataBR(vv.ts), cliente:vv.cliente, produto:NOME_PROD[vv.prodKey]||vv.produto, total:vv.total, vendedor:vv.vendedor||'' });
   }));
 }
 $('btnExport').addEventListener('click',()=>{
@@ -682,7 +691,9 @@ function editarEncomenda(id){
 async function cancelarEncomenda(id){
   const e=encomendas.find(x=>x.id===id); if(!e) return;
   if(!confirm('Cancelar a encomenda de '+e.cliente+'? Não vira venda.')) return;
-  try{ await window.fb.atualizarEncomenda(id,{status:'Cancelada',tsCancelada:Date.now()}); showToast('Encomenda cancelada'); }
+  try{ await window.fb.atualizarEncomenda(id,{status:'Cancelada',tsCancelada:Date.now()});
+    enviarPlanilha({ tipo:'encomenda_status', cliente:e.cliente, dataEntrega:e.dataEntrega.split('-').reverse().join('/'), valor:e.valor, status:'Cancelada' });
+    showToast('Encomenda cancelada'); }
   catch(err){ console.error(err); showToast('Erro ao cancelar'); }
 }
 function imprimirCupom(id){
@@ -720,7 +731,9 @@ async function concluirEncomenda(id){
         pago:e.pago==='sim'?'Sim':'Fiado', formaPagamento:v.forma });
       if(e.pago!=='sim') enviarPlanilha({ tipo:'conta_receber', dataVenda:dataBR(v.ts), cliente:e.cliente, produto:NOME_PROD[it.k], valor:v.total, vendedor:v.vendedor });
     }
-    await window.fb.ajustarEstoque(deltas); setTimeout(enviarEstoquePlanilha,800); showToast('Encomenda concluída ✓');
+    await window.fb.ajustarEstoque(deltas); setTimeout(enviarEstoquePlanilha,800);
+    enviarPlanilha({ tipo:'encomenda_status', cliente:e.cliente, dataEntrega:e.dataEntrega.split('-').reverse().join('/'), valor:e.valor, status:'Concluída' });
+    showToast('Encomenda concluída ✓');
   }catch(err){ console.error(err); showToast('Erro ao concluir'); }
 }
 
@@ -817,6 +830,20 @@ $('btnAjuste').addEventListener('click', async ()=>{
   try{ await window.fb.ajustarEstoque({ [k]: qtd }); setTimeout(enviarEstoquePlanilha,800);
     showToast('Ajuste aplicado ✓ '+(qtd>0?'+':'')+fmtNum(qtd)+' '+it.n); $('ajusteQtd').value='';
   }catch(e){ console.error(e); showToast('Erro'); }
+});
+$('btnImprimirEstoque').addEventListener('click',()=>{
+  const linha=i=>{ const q=Math.round((estoque[i.k]||0)*100)/100; const st=q<=0?'ZERADO':(q<=limiteBaixo(i.k)?'ACABANDO':''); const cor=q<=0?'#B5482F':(q<=limiteBaixo(i.k)?'#B8860B':'#111'); return `<div class="r" style="color:${cor};"><span>${i.n}</span><span>${fmtNum(q)} ${i.un}${st?' ⚠ '+st:''}</span></div>`; };
+  const prontos=ITENS_ESTOQUE.filter(i=>i.cat==='Produto pronto').map(linha).join('');
+  const insumos=ITENS_ESTOQUE.filter(i=>i.cat==='Insumo').map(linha).join('');
+  const compras=ITENS_ESTOQUE.filter(i=>{ const q=estoque[i.k]||0; return q<=limiteBaixo(i.k); }).map(i=>{ const q=Math.round((estoque[i.k]||0)*100)/100; return `<div class="r"><span>☐ ${i.n}</span><span>tem ${fmtNum(q)} ${i.un}</span></div>`; }).join('');
+  const w=window.open('','_blank');
+  w.document.write('<html><head><title>Estoque</title><style>body{font-family:monospace;font-size:12px;max-width:340px;margin:10px auto;color:#111;}h2{font-size:14px;text-align:center;}h3{font-size:12px;border-bottom:1px solid #999;margin-top:14px;}.r{display:flex;justify-content:space-between;margin:3px 0;}.box{border:2px solid #111;padding:8px;margin-top:10px;}</style></head><body>'+
+    '<h2>🍮 BENDITO PUDIM<br>Estoque — '+dataBR(Date.now())+'</h2>'+
+    '<h3>PRODUTOS PRONTOS</h3>'+prontos+
+    '<h3>INSUMOS</h3>'+insumos+
+    (compras?'<div class="box"><b>🛒 LISTA DE COMPRAS (o que está baixo)</b>'+compras+'</div>':'<div class="box">✓ Nada acabando no momento</div>')+
+    '<scr'+'ipt>window.print();<\/scr'+'ipt></body></html>');
+  w.document.close();
 });
 
 // ===== CAIXA =====
